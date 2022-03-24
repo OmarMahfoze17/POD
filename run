@@ -1,0 +1,20 @@
+#!/bin/bash
+#MSUB -r  POD_FFT 
+#MSUB -n  32 
+#MSUB -T 24000 
+#MSUB tgv_%I.o
+#MSUB tgv_%I.e
+#MSUB -q  rome
+#MSUB -A  ra5138
+#MSUB -m  scratch,work,store
+
+cd $BRIDGE_MSUB_PWD
+
+ml python3/
+module load ipm
+
+ccc_mprun -n 20 python3 FFT_z.py
+  
+
+
+
