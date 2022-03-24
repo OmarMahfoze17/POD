@@ -52,3 +52,54 @@ def getMean(pathIn,Domain,nFile):
     wmean = np.repeat(wmean[:, :, np.newaxis], nz, axis=2)
     return umean, vmean, wmean
 
+
+def calWeights(grids,subDomain):
+    grids=grids[subDomain[2]:subDomain[3]]
+    x_diff = np.diff(grids)
+    weights = 0.5 * np.append(np.append(x_diff[0]*2, (x_diff[:-1] + x_diff[1:])), x_diff[-1]*2)
+    weights=np.append(weights,[weights,weights])
+    grids=np.append(grids,[grids,grids])
+    weights =np.tile(weights, (subDomain[1]-subDomain[0], 1))
+    grids =np.tile(grids, (subDomain[1]-subDomain[0], 1))
+
+    weights=weights.reshape((-1))
+    grids=grids.reshape((-1))
+    return grids, weights
+
+
+def Screen(messege,All=True):
+    if All:
+        print(messege)
+    else:
+        if MPI.COMM_WORLD.rank==0:
+            print(messege)
+
+
+def getBlockRange(Ns,Nb,step):
+    Ns_b=Ns/Nb
+    n=0;
+    
+    II=[]
+    for I in range(Ns):
+        II.append(n)
+        n=n+1;
+        if n==Ns_b:
+            n=0;
+
+    III=II[::step]
+    N=0;K=0
+    IIII=[]
+    for J in range(len(III)):
+        N=N+1;
+        IIII.append([])
+        IIII[K].append(III[J])
+
+        # IIII{K}(N)=III(J);
+        try:
+            if III[J]>III[J+1]:
+                N=0
+                K=K+1
+        except:
+            pass
+    print(IIII[0],IIII[1])
+    return IIII

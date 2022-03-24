@@ -14,18 +14,26 @@ import h5py
 import time
 from future.builtins import range
 from myFunc import getZModes, getMean
+#sys.stdout = open('./LOG', 'w')
+from datetime import datetime
+
 comm = MPI.COMM_WORLD
 
 
 pathIn='/ccc/scratch/cont005/ra5138/mahfozeo/TBL_/Re_1250/Lx_750/canon/';
 pathOut=pathIn+'FFT_z/';
-os.system("mkdir "+pathOut)
+if comm.rank==0:
+    print('pathIn : ',pathIn)
+    print('pathOut : ',pathOut)
+    os.system("mkdir "+pathOut)
+#    sys.stdout.flush()
+comm.Barrier()
 fSt=1;
-fEnd=40001;
+fEnd=4001;
 step=1;
-Ns=100;
+Ns=25;
 nMeanf=4
-zModes=range(0,20)
+zModes=range(0,64)
 
 nSnaps=int((fEnd-fSt)/step+1)
 nBlock=range(int(nSnaps/Ns))
@@ -36,7 +44,7 @@ Nb=0
 nFile=range(fSt,fEnd,step)
 nFile_MPI=getZModes(nFile)
 print(f'rank {comm.rank}, number of blocks {len(nBlock_MPI)} the blocks are {nBlock_MPI}, Shift {Shift}, number of files {len(nFile_MPI)}, the files are {nFile_MPI}')
-
+#sys.stdout.flush()
 
 # path='/media/omar/MyBook_3/Data/Channel/POD/DNS/Re_180_highRes/POD_1D/H5/'
 
@@ -59,7 +67,9 @@ else:
 x = np.linspace(0, lx, nx)
 z = np.linspace(0, lz, nz)
 
-t0=time.time()
+if comm.rank==0:
+    print('Reading Mean Velocity field')
+#sys.stdout.flush()
 if comm.rank==0:
     umean, vmean, wmean= getMean(pathIn,[nx,ny,nz],nMeanf)
 else:
@@ -70,17 +80,21 @@ else:
 comm.Bcast(umean, root=0)
 comm.Bcast(vmean, root=0)
 comm.Bcast(wmean, root=0)
-
-
+if comm.rank==0:
+    print('Start of FFT')
+comm.Barrier()
+#sys.stdout.flush()
 uxn=np.zeros((nx_snap,ny,len(zModes),Ns),dtype=np.singlecomplex);
 uyn=np.zeros((nx_snap,ny,len(zModes),Ns),dtype=np.singlecomplex);
 uzn=np.zeros((nx_snap,ny,len(zModes),Ns),dtype=np.singlecomplex);
+
 t0=time.time()
 for n in nFile_MPI:
 
     N=int((n-fSt+step)/step)-1-Shift
     # N=int(n)-1-Shift
-    print(f'rank {comm.rank} ,  File n {n}, subfile N {N}')
+    print(f'rank {comm.rank} ,  File n {n}/{nFile_MPI[-1]}, subfile N {N}')
+ #   sys.stdout.flush()
     ufile = open(pathIn+"ux"+str(n).zfill(5), "rb")
     vfile = open(pathIn+"uy"+str(n).zfill(5), "rb")
     wfile = open(pathIn+"uz"+str(n).zfill(5), "rb")
@@ -113,7 +127,11 @@ for n in nFile_MPI:
             fID.create_dataset('uz', data=uzn[:,:,k,:])
             fID.close()
         t2=time.time()
-        print(f'Rank {comm.rank} : Reading and FFT time = {np.round(t1-t0,2)}.   Writing time of blck{ nBlock_MPI[Nb-1]} = {np.round(t2-t1,2)}')
+        now = datetime.now()
+        current_time = now.strftime("%H:%M:%S")
+	
+        print(f'Rank {comm.rank} : Reading and FFT time = {np.round(t1-t0,2)}. \n   Writing time of blck{ nBlock_MPI[Nb-1]}/{nBlock_MPI[-1]} = {np.round(t2-t1,2)} \n Clock {current_time}')
+  #      sys.stdout.flush()
         t0=time.time()
     # exit()
 
